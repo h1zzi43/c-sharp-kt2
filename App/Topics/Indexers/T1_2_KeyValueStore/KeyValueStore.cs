@@ -11,155 +11,100 @@ namespace App.Topics.Indexers.T1_2_KeyValueStore;
 
 public class KeyValueStore
 {
-    private readonly Dictionary<int, string> _idToValue;
-    private readonly Dictionary<string, int> _keyToId;
-    private readonly Dictionary<int, string> _idToKey;
-    private int _nextId;
+    // Два словаря для хранения значений по ключам разных типов
+    private readonly Dictionary<int, string> _intStore = new Dictionary<int, string>();
+    private readonly Dictionary<string, string> _stringStore = new Dictionary<string, string>();
 
-    public KeyValueStore()
-    {
-        _idToValue = new Dictionary<int, string>();
-        _keyToId = new Dictionary<string, int>();
-        _idToKey = new Dictionary<int, string>();
-        _nextId = 1;
-    }
+    // Словарь для связи между int и string ключами
+    private readonly Dictionary<int, string> _intToStringKey = new Dictionary<int, string>();
+    private readonly Dictionary<string, int> _stringToIntKey = new Dictionary<string, int>();
 
-    // Индексатор по int id
+    // Индексатор для доступа по int
     public string this[int id]
     {
         get
         {
-            if (_idToValue.TryGetValue(id, out string value))
+            // Получаем значение из словаря int ключей
+            if (_intStore.TryGetValue(id, out var value))
                 return value;
 
-            throw new KeyNotFoundException($"Элемент с ID {id} не найден");
+            throw new KeyNotFoundException($"Key '{id}' not found.");
         }
         set
         {
-            if (!_idToValue.ContainsKey(id))
-                throw new KeyNotFoundException($"Элемент с ID {id} не найден");
+            if (value == null)
+                throw new ArgumentNullException(nameof(value), "Value cannot be null");
 
-            _idToValue[id] = value;
+            // Если ключ уже существует, заменяем значение
+            if (_intStore.ContainsKey(id))
+            {
+                _intStore[id] = value;
+
+                // Если есть связанный строковый ключ, обновляем и там
+                if (_intToStringKey.TryGetValue(id, out var stringKey))
+                {
+                    _stringStore[stringKey] = value;
+                }
+            }
+            else
+            {
+                // Добавляем новый ключ-значение
+                _intStore.Add(id, value);
+            }
         }
     }
 
-    // Индексатор по string key
+    // Индексатор для доступа по string
     public string this[string key]
     {
         get
         {
             if (key == null)
-                throw new ArgumentNullException(nameof(key), "Ключ не может быть null");
+                throw new ArgumentNullException(nameof(key), "Key cannot be null");
 
-            if (_keyToId.TryGetValue(key, out int id))
-                return _idToValue[id];
+            // Получаем значение из словаря string ключей
+            if (_stringStore.TryGetValue(key, out var value))
+                return value;
 
-            throw new KeyNotFoundException($"Элемент с ключом '{key}' не найден");
+            throw new KeyNotFoundException($"Key '{key}' not found.");
         }
         set
         {
             if (key == null)
-                throw new ArgumentNullException(nameof(key), "Ключ не может быть null");
+                throw new ArgumentNullException(nameof(key), "Key cannot be null");
 
-            if (_keyToId.TryGetValue(key, out int id))
+            if (value == null)
+                throw new ArgumentNullException(nameof(value), "Value cannot be null");
+
+            // Если ключ уже существует, заменяем значение
+            if (_stringStore.ContainsKey(key))
             {
-                // Замена существующего значения
-                _idToValue[id] = value;
+                _stringStore[key] = value;
+
+                // Если есть связанный int ключ, обновляем и там
+                if (_stringToIntKey.TryGetValue(key, out var intKey))
+                {
+                    _intStore[intKey] = value;
+                }
             }
             else
             {
-                // Добавление нового элемента
-                int newId = _nextId++;
-                _idToValue[newId] = value;
-                _keyToId[key] = newId;
-                _idToKey[newId] = key;
+                // Добавляем новый ключ-значение
+                _stringStore.Add(key, value);
+
+                // Генерируем новый int ключ для этого string ключа
+                // Находим минимальный доступный int ключ
+                int newIntKey = 1;
+                while (_intStore.ContainsKey(newIntKey))
+                {
+                    newIntKey++;
+                }
+
+                // Связываем ключи
+                _intStore.Add(newIntKey, value);
+                _intToStringKey.Add(newIntKey, key);
+                _stringToIntKey.Add(key, newIntKey);
             }
         }
-    }
-
-    // Методы для удобства работы
-    public bool ContainsKey(string key)
-    {
-        if (key == null)
-            throw new ArgumentNullException(nameof(key));
-
-        return _keyToId.ContainsKey(key);
-    }
-
-    public bool ContainsId(int id)
-    {
-        return _idToValue.ContainsKey(id);
-    }
-
-    public int GetIdByKey(string key)
-    {
-        if (key == null)
-            throw new ArgumentNullException(nameof(key));
-
-        if (_keyToId.TryGetValue(key, out int id))
-            return id;
-
-        throw new KeyNotFoundException($"Ключ '{key}' не найден");
-    }
-
-    public string GetKeyById(int id)
-    {
-        if (_idToKey.TryGetValue(id, out string key))
-            return key;
-
-        throw new KeyNotFoundException($"ID {id} не найден");
-    }
-
-    public int Count => _idToValue.Count;
-
-    // Метод для удаления элемента
-    public bool Remove(string key)
-    {
-        if (key == null)
-            throw new ArgumentNullException(nameof(key));
-
-        if (_keyToId.TryGetValue(key, out int id))
-        {
-            _keyToId.Remove(key);
-            _idToValue.Remove(id);
-            _idToKey.Remove(id);
-            return true;
-        }
-
-        return false;
-    }
-
-    public bool Remove(int id)
-    {
-        if (_idToKey.TryGetValue(id, out string key))
-        {
-            _keyToId.Remove(key);
-            _idToValue.Remove(id);
-            _idToKey.Remove(id);
-            return true;
-        }
-
-        return false;
-    }
-
-    // Метод для очистки хранилища
-    public void Clear()
-    {
-        _idToValue.Clear();
-        _keyToId.Clear();
-        _idToKey.Clear();
-        _nextId = 1;
-    }
-
-    // Метод для отладки
-    public override string ToString()
-    {
-        var items = new List<string>();
-        foreach (var kvp in _idToValue)
-        {
-            string key = _idToKey.TryGetValue(kvp.Key, out string k) ? k : "null";
-            items.Add($"{key}(ID:{kvp.Key})='{kvp.Value}'");
-        }
-        return $"KeyValueStore: [{string.Join(", ", items)}]";
     }
 }
