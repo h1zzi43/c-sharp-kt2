@@ -11,9 +11,46 @@ namespace App.Topics.Indexers.T1_3_Matrix2D;
 
 public class Matrix2D
 {
-    // Студенту:
-    // 1) Добавьте приватное хранилище (одномерный массив) и размеры.
-    // 2) Реализуйте конструктор Matrix2D(int rows, int cols) с проверкой > 0.
-    // 3) Реализуйте свойства Rows, Cols.
-    // 4) Реализуйте индексатор this[int row, int col] c проверкой границ и отображением к одномерному индексу.
+    private readonly double[] _data;
+
+    public int Rows { get; }
+    public int Cols { get; }
+
+    public Matrix2D(int rows, int cols)
+    {
+        if (rows <= 0)
+            throw new ArgumentOutOfRangeException(nameof(rows), "Rows must be greater than 0.");
+
+        if (cols <= 0)
+            throw new ArgumentOutOfRangeException(nameof(cols), "Cols must be greater than 0.");
+
+        Rows = rows;
+        Cols = cols;
+        _data = new double[rows * cols];
+    }
+
+    public double this[int row, int col]
+    {
+        get
+        {
+            ValidateIndices(row, col);
+            int index = row * Cols + col;
+            return _data[index];
+        }
+        set
+        {
+            ValidateIndices(row, col);
+            int index = row * Cols + col;
+            _data[index] = value;
+        }
+    }
+
+    private void ValidateIndices(int row, int col)
+    {
+        if (row < 0 || row >= Rows)
+            throw new ArgumentOutOfRangeException($"Row index {row} is out of range.");
+
+        if (col < 0 || col >= Cols)
+            throw new ArgumentOutOfRangeException($"Column index {col} is out of range.");
+    }
 }
